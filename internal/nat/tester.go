@@ -209,7 +209,7 @@ func testHolePunching(conn *net.UDPConn, timeout time.Duration) int {
 		return 0
 	}
 
-	conn.SetDeadline(time.Now().Add(timeout))
+	_ = conn.SetDeadline(time.Now().Add(timeout))
 	defer func() { _ = conn.SetDeadline(time.Time{}) }()
 
 	for i := 0; i < 3; i++ {
