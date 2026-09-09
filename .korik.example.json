@@ -1,0 +1,12 @@
+{
+  "name": "your-name",
+  "port": 9999,
+  "discovery_port": 9998,
+  "history_size": 1000,
+  "stun_server": "stun.l.google.com:19302",
+  "no_discovery": false,
+  "internet_mode": false,
+  "read_receipts": false,
+  "typing_indicator": true,
+  "auto_reconnect": true
+}
