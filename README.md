@@ -120,8 +120,12 @@ If auto-discovery doesn't work (e.g., different subnets or hotspot with AP isola
 ### File Transfer
 
 ```bash
-# In CLI, send file to connected peer:
+# Multicast send file to all connected peers:
 /send ~/Documents/presentation.pdf
+
+# Target send file to specific peer or group room:
+/send ~/Documents/presentation.pdf bob
+/send ~/Documents/presentation.pdf grp-12345678
 
 # On receiving side:
 # [📁] alice wants to send file: presentation.pdf (2.5 MB)
@@ -328,14 +332,13 @@ korik/
 ### Current Limitations
 
 - **Symmetric NAT**: UDP hole punching fails when both peers are behind symmetric NAT (inherent limitation without TURN relay)
-- **Group Chat**: Currently broadcast only (pseudo-group "All"), not true multi-peer group
-- **File Transfer**: Single peer at a time (multicast file transfer not yet implemented)
+- **Group Chat**: Key exchange and messaging support structured groups (`/group`), rekeying, and member invites
 
 ### Planned Features
 
 - [ ] Web GUI with SSE/WebSocket
 - [ ] True multi-peer group chat
-- [ ] Multicast file transfer
+- [x] Multicast file transfer
 - [ ] TURN relay fallback (optional, self-hosted)
 - [ ] Voice/video call (WebRTC integration)
 - [ ] Mobile apps (React Native or Flutter wrapper)

@@ -1509,12 +1509,12 @@ func (n *Node) SendReadReceipt(jid, messageID string) {
 	n.sendRaw(target, msg)
 }
 
-// SendFile initiates a file transfer
+// SendFile initiates a file transfer to a target peer JID/LID/Name
 func (n *Node) SendFile(jid, filePath string) error {
 	n.mu.Lock()
 	var target *peerConn
 	for _, pc := range n.conns {
-		if pc.jid == jid && pc.sessionKey != nil {
+		if (pc.jid == jid || pc.lid == jid || pc.name == jid) && pc.sessionKey != nil {
 			target = pc
 			break
 		}
@@ -1522,10 +1522,10 @@ func (n *Node) SendFile(jid, filePath string) error {
 	n.mu.Unlock()
 
 	if target == nil {
-		return fmt.Errorf("peer not connected or e2e not ready")
+		return fmt.Errorf("peer %s not connected or e2e not ready", jid)
 	}
 
-	t, err := n.FileTransfer.CreateSendTransfer(filePath, jid)
+	t, err := n.FileTransfer.CreateSendTransfer(filePath, target.jid)
 	if err != nil {
 		return err
 	}
@@ -1542,7 +1542,121 @@ func (n *Node) SendFile(jid, filePath string) error {
 	}
 
 	n.sendRaw(target, msg)
-	fmt.Printf("file transfer offered: %s (%s)\n", t.FileName, t.ID)
+	fmt.Printf("file transfer offered: %s (%s) → %s\n", t.FileName, t.ID, target.name)
+	return nil
+}
+
+// SendFileMulticast sends file transfer offers simultaneously to all ready connected peers.
+func (n *Node) SendFileMulticast(filePath string) error {
+	n.mu.Lock()
+	readyPeers := make([]*peerConn, 0, len(n.conns))
+	for _, pc := range n.conns {
+		if pc.sessionKey != nil {
+			if n.ContactBook != nil && n.ContactBook.IsBlocked(pc.jid) {
+				continue
+			}
+			readyPeers = append(readyPeers, pc)
+		}
+	}
+	n.mu.Unlock()
+
+	if len(readyPeers) == 0 {
+		return fmt.Errorf("no connected peers with ready E2E sessions")
+	}
+
+	peerJIDs := make([]string, 0, len(readyPeers))
+	for _, pc := range readyPeers {
+		peerJIDs = append(peerJIDs, pc.jid)
+	}
+
+	transfers, err := n.FileTransfer.CreateMulticastSendTransfers(filePath, peerJIDs)
+	if err != nil {
+		return err
+	}
+
+	for i, pc := range readyPeers {
+		t := transfers[i]
+		msg := Message{
+			Type:       MsgFileOffer,
+			From:       n.Name,
+			JID:        n.Identity.JID,
+			LID:        n.Identity.LID,
+			FileID:     t.ID,
+			FileName:   t.FileName,
+			FileSize:   t.FileSize,
+			ChunkTotal: t.ChunkTotal,
+		}
+		n.sendRaw(pc, msg)
+	}
+
+	fmt.Printf("multicast file offer sent: %s to %d peer(s)\n", transfers[0].FileName, len(readyPeers))
+	return nil
+}
+
+// SendFileGroup sends file transfer offers to all connected members of a group room.
+func (n *Node) SendFileGroup(roomID, filePath string) error {
+	if n.Groups == nil {
+		return fmt.Errorf("group store not initialized")
+	}
+	room, ok := n.Groups.Get(roomID)
+	if !ok {
+		return fmt.Errorf("unknown group room %s", roomID)
+	}
+
+	self := n.Identity.JID
+	if !n.Groups.IsMember(roomID, self) {
+		return fmt.Errorf("you are not a member of group %s", room.Name)
+	}
+
+	n.mu.Lock()
+	targetPeers := make([]*peerConn, 0)
+	for _, pc := range n.conns {
+		if pc.sessionKey == nil || pc.jid == self {
+			continue
+		}
+		if n.ContactBook != nil && n.ContactBook.IsBlocked(pc.jid) {
+			continue
+		}
+		for _, memberJID := range room.Members {
+			if memberJID == pc.jid {
+				targetPeers = append(targetPeers, pc)
+				break
+			}
+		}
+	}
+	n.mu.Unlock()
+
+	if len(targetPeers) == 0 {
+		return fmt.Errorf("no active group members online for %s", room.Name)
+	}
+
+	peerJIDs := make([]string, 0, len(targetPeers))
+	for _, pc := range targetPeers {
+		peerJIDs = append(peerJIDs, pc.jid)
+	}
+
+	transfers, err := n.FileTransfer.CreateMulticastSendTransfers(filePath, peerJIDs)
+	if err != nil {
+		return err
+	}
+
+	for i, pc := range targetPeers {
+		t := transfers[i]
+		msg := Message{
+			Type:       MsgFileOffer,
+			From:       n.Name,
+			JID:        n.Identity.JID,
+			LID:        n.Identity.LID,
+			GroupID:    room.ID,
+			FileID:     t.ID,
+			FileName:   t.FileName,
+			FileSize:   t.FileSize,
+			ChunkTotal: t.ChunkTotal,
+		}
+		n.sendRaw(pc, msg)
+	}
+
+	fmt.Printf("group file offer sent: %s to %d member(s) in [%s]\n", transfers[0].FileName, len(targetPeers), room.Name)
 	return nil
 }
 

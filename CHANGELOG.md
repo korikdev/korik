@@ -27,8 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic history save for sent and received messages
   - Direction indicator (← received, → sent) in history view
 
-- **File Transfer**: Send and receive files with progress tracking
-  - `/send <filepath>` command to initiate file transfer
+- **File Transfer & Multicast**: Send and receive files with progress tracking and multi-peer broadcast
+  - `/send <filepath>` command to multicast file transfer offers to all connected peers
+  - `/send <filepath> <target>` command to send file transfer offers to a specific peer or group room
   - `/accept <file_id>` and `/reject <file_id>` to respond to offers
   - 64KB chunking for efficient transfer
   - Progress indicator (10% increments)

@@ -48,3 +48,36 @@ func TestReadChunkAtRandomAccess(t *testing.T) {
 		t.Fatal("expected out-of-range error")
 	}
 }
+
+func TestMulticastSendTransfers(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multicast.bin")
+	if err := os.WriteFile(path, []byte("multicast file content data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	peers := []string{"korik:peer1", "korik:peer2", "korik:peer3"}
+	transfers, err := m.CreateMulticastSendTransfers(path, peers)
+	if err != nil {
+		t.Fatalf("unexpected error creating multicast transfers: %v", err)
+	}
+
+	if len(transfers) != len(peers) {
+		t.Fatalf("expected %d transfers, got %d", len(peers), len(transfers))
+	}
+
+	for i, tr := range transfers {
+		if tr.PeerJID != peers[i] {
+			t.Errorf("expected PeerJID %s, got %s", peers[i], tr.PeerJID)
+		}
+		if tr.Direction != "send" {
+			t.Errorf("expected direction send, got %s", tr.Direction)
+		}
+	}
+
+	peer1Transfers := m.GetTransfersByPeer("korik:peer1")
+	if len(peer1Transfers) != 1 {
+		t.Fatalf("expected 1 transfer for peer1, got %d", len(peer1Transfers))
+	}
+}

@@ -509,32 +509,38 @@ func main() {
 			}
 
 		case strings.HasPrefix(line, "/send "):
-			filePath := strings.TrimSpace(strings.TrimPrefix(line, "/send "))
-			if strings.HasPrefix(filePath, "~") {
-				filePath = filepath.Join(home, filePath[1:])
-			}
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				fmt.Println(ui.Failure("File not found: " + filePath))
+			rawArgs := strings.TrimPrefix(line, "/send ")
+			filePath, target, err := parseSendArgs(rawArgs, home)
+			if err != nil {
+				fmt.Println(ui.Failure(err.Error()))
 				continue
 			}
-			peers := node.Peers()
-			if len(peers) == 0 {
-				fmt.Println(ui.Failure("No peers connected. File will not be sent."))
-			} else {
-				sent := false
-				for _, p := range peers {
-					if p.Ready {
-						if err := node.SendFile(p.JID, filePath); err != nil {
-							fmt.Println(ui.Failure(status.HumanizeError(err)))
-						} else {
-							fmt.Println(ui.FileEvent("file offer sent: " + filePath))
-							sent = true
-						}
-						break
+
+			if target == "" || strings.EqualFold(target, "all") {
+				if err := node.SendFileMulticast(filePath); err != nil {
+					fmt.Println(ui.Failure(status.HumanizeError(err)))
+				} else {
+					fmt.Println(ui.FileEvent("multicast file offer sent: " + filePath))
+				}
+			} else if node.Groups != nil {
+				if room, ok := node.Groups.Resolve(target); ok {
+					if err := node.SendFileGroup(room.ID, filePath); err != nil {
+						fmt.Println(ui.Failure(status.HumanizeError(err)))
+					} else {
+						fmt.Println(ui.FileEvent("group file offer sent to [" + room.Name + "]: " + filePath))
+					}
+				} else {
+					if err := node.SendFile(target, filePath); err != nil {
+						fmt.Println(ui.Failure(status.HumanizeError(err)))
+					} else {
+						fmt.Println(ui.FileEvent("file offer sent to " + target + ": " + filePath))
 					}
 				}
-				if !sent {
-					fmt.Println(ui.Failure("Encryption handshake not ready yet. Wait a moment and retry."))
+			} else {
+				if err := node.SendFile(target, filePath); err != nil {
+					fmt.Println(ui.Failure(status.HumanizeError(err)))
+				} else {
+					fmt.Println(ui.FileEvent("file offer sent to " + target + ": " + filePath))
 				}
 			}
 
@@ -871,7 +877,7 @@ func printHelp() {
 	fmt.Println("  Groups:")
 	fmt.Println("    /groups, /group create|invite|leave|rekey, /g <room> <text>")
 	fmt.Println("  Files:")
-	fmt.Println("    /send <path>, /accept <id>, /reject <id>, /resume <id>")
+	fmt.Println("    /send <path> [target] (multicast to all or target peer/group), /accept <id>, /reject <id>, /resume <id>")
 	fmt.Println("  Contacts:")
 	fmt.Println("    /contacts [filter], /search <query> (fuzzy), /contact <jid>")
 	fmt.Println("    /alias, /favorite, /block, /unblock, /trust <jid>")
@@ -880,6 +886,41 @@ func printHelp() {
 	fmt.Println("    /export-identity <path>, /import-identity <path>")
 	fmt.Println("    /export-data <path>, /import-data <path>")
 	fmt.Println("  App: /check-update, /help, /quit")
+}
+
+func parseSendArgs(input, home string) (filePath, target string, err error) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return "", "", fmt.Errorf("usage: /send <filepath> [peer|group]")
+	}
+
+	expandPath := func(p string) string {
+		p = strings.Trim(p, "\"")
+		if strings.HasPrefix(p, "~") {
+			return filepath.Join(home, p[1:])
+		}
+		return p
+	}
+
+	// 1. Try input as entire file path (no target provided, defaults to multicast)
+	candidatePath := expandPath(input)
+	if _, statErr := os.Stat(candidatePath); statErr == nil {
+		return candidatePath, "", nil
+	}
+
+	// 2. Try splitting from the rightmost space for target
+	lastSpace := strings.LastIndex(input, " ")
+	if lastSpace > 0 {
+		pathPart := input[:lastSpace]
+		targetPart := strings.TrimSpace(input[lastSpace+1:])
+
+		candidatePath = expandPath(pathPart)
+		if _, statErr := os.Stat(candidatePath); statErr == nil {
+			return candidatePath, targetPart, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("file not found: %s", input)
 }
 
 func printCandidates(node *peer.Node) {

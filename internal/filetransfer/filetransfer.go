@@ -126,6 +126,41 @@ func (m *Manager) CreateSendTransfer(filePath, peerJID string) (*Transfer, error
 	return t, nil
 }
 
+// CreateMulticastSendTransfers creates outgoing file transfers for multiple recipient peers.
+func (m *Manager) CreateMulticastSendTransfers(filePath string, peerJIDs []string) ([]*Transfer, error) {
+	if len(peerJIDs) == 0 {
+		return nil, fmt.Errorf("no recipient peers provided")
+	}
+
+	transfers := make([]*Transfer, 0, len(peerJIDs))
+	for _, jid := range peerJIDs {
+		t, err := m.CreateSendTransfer(filePath, jid)
+		if err != nil {
+			// Cancel already created transfers in this batch
+			for _, created := range transfers {
+				created.Cancel()
+			}
+			return nil, err
+		}
+		transfers = append(transfers, t)
+	}
+	return transfers, nil
+}
+
+// GetTransfersByPeer returns all active or pending transfers associated with a given peer JID.
+func (m *Manager) GetTransfersByPeer(peerJID string) []*Transfer {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var result []*Transfer
+	for _, t := range m.transfers {
+		if t.PeerJID == peerJID {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
 // CreateReceiveTransfer creates a new incoming file transfer
 func (m *Manager) CreateReceiveTransfer(id, fileName, peerJID string, fileSize int64, chunkTotal int) *Transfer {
 	t := &Transfer{
