@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	Enabled bool
-	Logger  *log.Logger
-	mu      sync.Mutex
-	logDir  string
+	Enabled     bool
+	Logger      *log.Logger
+	mu          sync.Mutex
+	logDir      string
 	currentDate string
 )
 

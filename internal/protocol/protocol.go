@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	CurrentVersion     ProtocolVersion = "1.0.0"
+	CurrentVersion      ProtocolVersion = "1.0.0"
 	MinSupportedVersion ProtocolVersion = "1.0.0"
 )
 

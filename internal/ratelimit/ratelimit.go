@@ -96,16 +96,16 @@ func (l *Limiter) Reset(key string) {
 // PeerGuard enforces per-peer message rate limits and maintains a strike
 // counter. After MaxStrikesBeforeBlock violations the peer is auto-blocked.
 type PeerGuard struct {
-	mu      sync.Mutex
-	peers   map[string]*peerState
+	mu    sync.Mutex
+	peers map[string]*peerState
 }
 
 type peerState struct {
 	// Token bucket for message rate (100 msg/min = ~1.67/sec).
-	tokens    float64
-	last      time.Time
-	strikes   int
-	blocked   bool
+	tokens  float64
+	last    time.Time
+	strikes int
+	blocked bool
 }
 
 // NewPeerGuard creates a guard with the spec-mandated limits.

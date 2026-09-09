@@ -12,6 +12,7 @@ import (
 )
 
 var githubReleasesURL = "https://api.github.com/repos/korikdev/korik/releases/latest"
+
 const cacheDuration = 24 * time.Hour
 
 // UpdateInfo holds information about a available update.
@@ -155,9 +156,9 @@ func (c *Checker) fetchLatest() (*UpdateInfo, error) {
 	}
 
 	var release struct {
-		TagName    string `json:"tag_name"`
+		TagName     string `json:"tag_name"`
 		PublishedAt string `json:"published_at"`
-		HTMLURL    string `json:"html_url"`
+		HTMLURL     string `json:"html_url"`
 	}
 	if err := json.Unmarshal(body, &release); err != nil {
 		return nil, fmt.Errorf("update check failed: parsing response: %w", err)

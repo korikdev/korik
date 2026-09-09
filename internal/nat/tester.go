@@ -125,7 +125,7 @@ func DetectNATType(stunServer string, timeout time.Duration) (*TestResult, error
 		IsSymmetric:     isSymmetric,
 		SymmetricNAT:    symmetricNAT,
 		HolesPunched:    holesPunched,
-		Latency:        latency,
+		Latency:         latency,
 		Compatibility:   compatibility,
 		Recommendations: recs,
 	}, nil
