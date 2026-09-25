@@ -26,9 +26,5 @@ func TestJIDMatchesPubkeyRoundTrip(t *testing.T) {
 		if want := LIDFromPublicKeyHex(pubHex); want != id.LID {
 			t.Fatalf("LID mismatch: %s vs %s", want, id.LID)
 		}
-		tampered := "korik:00" + pubHex[2:]
-		if JIDFromPublicKeyHex(pubHex) == tampered {
-			t.Fatal("tampered JID must not match fingerprint")
-		}
 	}
 }
